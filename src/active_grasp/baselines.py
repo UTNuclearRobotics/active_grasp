@@ -26,7 +26,8 @@ class TopTrajectory(MultiViewPolicy):
         self.integrate(img, x, q)
         linear, _ = compute_error(self.x_d, x)
         if np.linalg.norm(linear) < 0.02:
-            self.done = True
+            # self.done = True
+            self.done = False
 
 
 class FixedTrajectory(MultiViewPolicy):

@@ -219,7 +219,8 @@ def compute_convex_hull(cloud):
 class ViewHalfSphere:
     def __init__(self, bbox, min_z_dist):
         self.center = bbox.center
-        self.r = 0.5 * bbox.size[2] + min_z_dist
+        # self.r = 0.5 * bbox.size[2] + min_z_dist
+        self.r = 0.6 * bbox.size[2] + min_z_dist
 
     def get_view(self, theta, phi):
         eye = self.center + spherical_to_cartesian(self.r, theta, phi)

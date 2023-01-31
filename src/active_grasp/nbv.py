@@ -5,7 +5,7 @@ import rospy
 
 from .policy import MultiViewPolicy
 from .timer import Timer
-
+import ipdb
 
 @jit(nopython=True)
 def get_voxel_at(voxel_size, p):
@@ -86,7 +86,8 @@ class NextBestView(MultiViewPolicy):
 
     def update(self, img, x, q):
         if len(self.views) > self.max_views or self.best_grasp_prediction_is_stable():
-            self.done = True
+            # self.done = True
+            self.done = False
         else:
             with Timer("state_update"):
                 self.integrate(img, x, q)
@@ -102,7 +103,8 @@ class NextBestView(MultiViewPolicy):
             nbv, gain = views[i], gains[i]
 
             if gain < self.min_gain and len(self.views) > self.T:
-                self.done = True
+                # self.done = True
+                self.done = False
 
             self.x_d = nbv
 
@@ -116,13 +118,18 @@ class NextBestView(MultiViewPolicy):
         return False
 
     def generate_views(self, q):
-        thetas = np.deg2rad([15, 30])
-        phis = np.arange(8) * np.deg2rad(45)
+        # thetas = np.deg2rad([15, 30])
+        # phis = np.arange(8) * np.deg2rad(45)
+        # thetas = np.deg2rad([-30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+        thetas = np.arange(-4,4) * np.deg2rad(15)
+        phis = np.arange(0,5) * np.deg2rad(30)
         view_candidates = []
         for theta, phi in itertools.product(thetas, phis):
+            # ipdb.set_trace()
             view = self.view_sphere.get_view(theta, phi)
-            if self.solve_cam_ik(q, view):
-                view_candidates.append(view)
+            view_candidates.append(view)
+            # if self.solve_cam_ik(q, view):
+            #     view_candidates.append(view)
         return view_candidates
 
     def ig_fn(self, view, downsample):

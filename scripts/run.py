@@ -19,8 +19,9 @@ def main():
 
     parser = create_parser()
     args = parser.parse_args()
-
+    
     policy = make(args.policy)
+    print(f"policy = {policy}")
     controller = GraspController(policy)
     logger = Logger(args)
 

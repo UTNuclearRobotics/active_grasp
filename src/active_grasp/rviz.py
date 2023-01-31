@@ -20,8 +20,10 @@ class Visualizer(vgn.rviz.Visualizer):
     def bbox(self, frame, bbox):
         pose = Transform.identity()
         scale = [0.004, 0.0, 0.0]
+        scale = [0.004, 0.0, 0.0]
         color = red
         lines = box_lines(bbox.min, bbox.max)
+        # lines = box_lines(tuple(0.,), bbox.max)
         marker = create_line_list_marker(frame, pose, scale, color, lines, "bbox")
         self.draw([marker])
 

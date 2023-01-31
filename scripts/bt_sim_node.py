@@ -23,10 +23,12 @@ from vgn.simulation import apply_noise
 
 class BtSimNode:
     def __init__(self):
-        gui = rospy.get_param("~gui")
+        gui = True #rospy.get_param("~gui")
+        print(f"gui = {gui}")
         scene_id = rospy.get_param("~scene")
         vgn_path = rospy.get_param("vgn/model")
         self.sim = Simulation(gui, scene_id, vgn_path)
+        print("created pybullet sim WITHOUT PLUGINS")
         self.init_plugins()
         self.advertise_services()
 
@@ -96,8 +98,12 @@ class BtSimNode:
 
     def run(self):
         self.start_plugins()
+        print("started plugins")
         self.activate_plugins()
+        print("activated plugins")
         rospy.spin()
+        print("finished rospy spin")
+       
 
 
 class Plugin:
@@ -371,8 +377,12 @@ class MockActionsPlugin(Plugin):
 
 def main():
     rospy.init_node("bt_sim")
+    
+    print("starting pybullet sim")
     server = BtSimNode()
+    print("created pybullet sim")
     server.run()
+    print("successfully running server")
 
 
 if __name__ == "__main__":

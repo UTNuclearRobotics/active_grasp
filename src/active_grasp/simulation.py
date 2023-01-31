@@ -11,7 +11,7 @@ from robot_helpers.spatial import Rotation
 from vgn.perception import UniformTSDFVolume
 from vgn.utils import find_urdfs, view_on_sphere
 from vgn.detection import VGN, select_local_maxima
-
+import ipdb
 # import vgn.visualizer as vis
 
 rospack = rospkg.RosPack()
@@ -87,6 +87,9 @@ class Simulation:
 
     def get_target_bbox(self, uid):
         aabb_min, aabb_max = p.getAABB(uid)
+        # ipdb.set_trace()
+        # aabb_min = tuple([0.0,0.,0.1])
+        # aabb_max = tuple([0.75,0.4,0.4])
         return AABBox(aabb_min, aabb_max)
 
     def check_for_grasps(self, bbox):
