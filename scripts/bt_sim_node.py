@@ -13,6 +13,7 @@ from sensor_msgs.msg import JointState, Image, CameraInfo
 from scipy import interpolate
 from std_msgs.msg import Header
 from threading import Thread
+import ipdb
 
 from active_grasp.bbox import to_bbox_msg
 from active_grasp.srv import *
@@ -21,13 +22,24 @@ from robot_helpers.ros.conversions import *
 from vgn.simulation import apply_noise
 
 
+alpha = 0.5
+
 class BtSimNode:
     def __init__(self):
         gui = True #rospy.get_param("~gui")
         print(f"gui = {gui}")
         scene_id = rospy.get_param("~scene")
         vgn_path = rospy.get_param("vgn/model")
-        self.sim = Simulation(gui, scene_id, vgn_path)
+
+        ur5_path = rospy.get_param("bt_sim/ur5_path")
+
+        self.sim = Simulation(gui, scene_id, vgn_path, ur5_path)
+        # ipdb.set_trace()
+        
+        # print(f"ur5_path = {ur5_path}")
+
+        
+
         print("created pybullet sim WITHOUT PLUGINS")
         self.init_plugins()
         self.advertise_services()
@@ -101,6 +113,11 @@ class BtSimNode:
         print("started plugins")
         self.activate_plugins()
         print("activated plugins")
+
+        # self.sim.ur5.main_loop()
+        # self.sim.ur5.bullet_obj.robot.step()
+        # ipdb.set_trace()
+        # self.sim.ur5.plugin.activate()
         rospy.spin()
         print("finished rospy spin")
        
@@ -161,19 +178,35 @@ class RobotStatePlugin(Plugin):
         header = Header(stamp=rospy.Time.now())
 
         msg = FrankaState(header=header, q=q, dq=dq)
-        self.arm_state_pub.publish(msg)
 
+        self.arm_state_pub.publish(msg)
+        # ipdb.set_trace()
         msg = JointState(header=header)
+        
         msg.name = ["panda_finger_joint1", "panda_finger_joint2"]
         msg.position = [0.5 * width, 0.5 * width]
         self.gripper_state_pub.publish(msg)
 
+        q, dq = self.arm.get_state_all()
+        q_old = q[:7]
+        dq_old = dq[:7]
         msg = JointState(header=header)
         msg.name = ["panda_joint{}".format(i) for i in range(1, 8)] + [
             "panda_finger_joint1",
             "panda_finger_joint2",
+            "panda_ur5_joint",
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+            "ee_fixed_joint",
+            "ur5_hand_camera_depth_optical_frame_joint",
+
         ]
-        msg.position = np.r_[q, 0.5 * width, 0.5 * width]
+        # msg.position = np.r_[q, 0.5 * width, 0.5 * width]
+        msg.position = np.r_[q_old, 0.5 * width, 0.5 * width, q[12:]]
         self.joint_states_pub.publish(msg)
 
 

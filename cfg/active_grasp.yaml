@@ -2,6 +2,7 @@ bt_sim:
   gui: False
   gripper_force: 10
   scene: random
+  ur5_path: $(find pb_ros)/urdf/urdf/ur5.urdf
 
 hw:
   roi_calib_file: $(find active_grasp)/cfg/hw/T_base_tag.txt

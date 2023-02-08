@@ -18,11 +18,14 @@ rospack = rospkg.RosPack()
 pkg_root = Path(rospack.get_path("active_grasp"))
 urdfs_dir = pkg_root / "assets"
 
+from pb_ros.ros_wrapper import ROS_Wrapper
 
 class Simulation:
     """Robot is placed s.t. world and base frames are the same"""
 
-    def __init__(self, gui, scene_id, vgn_path):
+    def __init__(self, gui, scene_id, vgn_path, ur5_path):
+        self.ur5_path = ur5_path 
+
         self.configure_physics_engine(gui, 60, 4)
         self.configure_visualizer()
         self.seed()
@@ -46,13 +49,15 @@ class Simulation:
         self.rng = np.random.default_rng(seed) if seed else np.random
 
     def load_robot(self):
-        panda_urdf_path = urdfs_dir / "franka/panda_arm_hand.urdf"
+        # panda_urdf_path = urdfs_dir / "franka/panda_arm_hand.urdf"
+        panda_urdf_path = urdfs_dir / "franka/panda_arm_hand_ur5.urdf"
         self.arm = BtPandaArm(panda_urdf_path)
         self.gripper = BtPandaGripper(self.arm)
         self.model = KDLModel.from_urdf_file(
             panda_urdf_path, self.arm.base_frame, self.arm.ee_frame
         )
         self.camera = BtCamera(320, 240, 0.96, 0.01, 1.0, self.arm.uid, 11)
+        # self.ur5 = ROS_Wrapper(self.ur5_path,gui=True)
 
     def load_vgn(self, model_path):
         self.vgn = VGN(model_path)
