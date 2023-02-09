@@ -16,7 +16,7 @@ from robot_helpers.ros.panda import PandaArmClient, PandaGripperClient
 from robot_helpers.ros.moveit import MoveItClient, create_collision_object_from_mesh
 from robot_helpers.spatial import Rotation, Transform
 from vgn.utils import look_at, cartesian_to_spherical, spherical_to_cartesian
-
+import ipdb
 
 class GraspController:
     def __init__(self, policy):
@@ -91,6 +91,7 @@ class GraspController:
 
     def reset(self):
         Timer.reset()
+        ipdb.set_trace()
         self.moveit.scene.clear()
         res = self.reset_env(ResetRequest())
         rospy.sleep(1.0)  # Wait for the TF tree to be updated.

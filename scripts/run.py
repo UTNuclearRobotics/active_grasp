@@ -11,12 +11,12 @@ from active_grasp.controller import *
 from active_grasp.policy import make, registry
 from active_grasp.srv import Seed
 from robot_helpers.ros import tf
-
+import ipdb
 
 def main():
     rospy.init_node("grasp_controller")
     tf.init()
-
+    
     parser = create_parser()
     args = parser.parse_args()
     
@@ -24,13 +24,14 @@ def main():
     print(f"policy = {policy}")
     controller = GraspController(policy)
     logger = Logger(args)
-
+    ipdb.set_trace()
     seed_simulation(args.seed)
     rospy.sleep(1.0)  # Prevents a rare race condiion
 
     for _ in tqdm(range(args.runs), disable=args.wait_for_input):
         if args.wait_for_input:
-            controller.gripper.move(0.08)
+            
+            # controller.gripper.move(0.08)
             controller.switch_to_joint_trajectory_control()
             controller.moveit.goto("ready", velocity_scaling=0.4)
             i = input("Run policy? [y/n] ")

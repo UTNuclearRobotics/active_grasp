@@ -6,6 +6,8 @@ from controller_manager_msgs.srv import *
 import cv_bridge
 from franka_msgs.msg import FrankaState, ErrorRecoveryAction
 from franka_gripper.msg import *
+
+from pb_ros.topics import joint_state_ur5, ArmCommand_ur5, actionserver_ur5
 from geometry_msgs.msg import Twist
 import numpy as np
 import rospy
@@ -59,6 +61,9 @@ class BtSimNode:
                 self.sim.arm, self.sim.model
             ),
             "position_joint_trajectory_controller": JointTrajectoryControllerPlugin(
+                self.sim.arm
+            ),
+            "position_joint_trajectory_controller": UR5JointTrajectoryControllerPlugin(
                 self.sim.arm
             ),
         }
@@ -272,6 +277,46 @@ class JointTrajectoryControllerPlugin(Plugin):
                 self.action_server.set_succeeded()
                 return
             self.arm.set_desired_joint_positions(self.m(self.elapsed_time))
+
+
+class UR5JointTrajectoryControllerPlugin(Plugin):
+    def __init__(self, arm, rate=30):
+        super().__init__(rate)
+        self.arm = arm
+        self.dt = 1.0 / self.rate  # TODO this might not be reliable
+        self.init_action_server()
+
+    def init_action_server(self):
+        name = "ur5_arm_controller/follow_joint_trajectory"
+        self.action_server = SimpleActionServer(
+            name, control_msgs.FollowJointTrajectoryAction, auto_start=False
+        )
+        
+        self.action_server.register_goal_callback(self.action_goal_cb)
+        self.action_server.start()
+#####################################################
+        self.duration = 100
+
+    def action_goal_cb(self):
+        goal = self.action_server.accept_new_goal()
+        self.interpolate_trajectory(goal.trajectory.points)
+        self.elapsed_time = 0.0
+
+    def interpolate_trajectory(self, points):
+        t, y = np.zeros(len(points)), np.zeros((7, len(points)))
+        for i, point in enumerate(points):
+            t[i] = point.time_from_start.to_sec()
+            y[:, i] = point.positions
+        self.m = interpolate.interp1d(t, y)
+        self.duration = t[-1]
+
+    def update(self):
+        if self.action_server.is_active():
+            self.elapsed_time += self.dt
+            if self.elapsed_time > self.duration:
+                self.action_server.set_succeeded()
+                return
+            self.arm.set_desired_joint_positions_ur5(self.m(self.elapsed_time))
 
 
 class MoveActionPlugin(Plugin):
