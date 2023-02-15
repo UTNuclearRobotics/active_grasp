@@ -9,12 +9,14 @@ hw:
   scene_file: $(find active_grasp)/cfg/hw/scene01.yaml
 
 grasp_controller:
-  base_frame_id: panda_link0
+  # base_frame_id: panda_link0
+  base_frame_id: base_link
   ee_grasp_offset: [0.0, 0.0, -0.383, 0.924, 0.0, 0.0, 0.065]  # offset to panda_link8
   control_rate: 30
   linear_vel: 0.05
   camera:
-    frame_id: camera_depth_optical_frame
+    # frame_id: camera_depth_optical_frame
+    frame_id: ur5_camera_depth_optical_frame
     info_topic: /camera/depth/camera_info
     depth_topic: /camera/depth/image_rect_raw
     min_z_dist: 0.3

@@ -12,6 +12,7 @@ from vgn.perception import UniformTSDFVolume
 from .timer import Timer
 from .rviz import Visualizer
 
+import ipdb
 
 def solve_ik(q0, pose, solver):
     x, y, z = pose.translation
@@ -38,7 +39,8 @@ class Policy:
     def init_ik_solver(self):
         self.q0 = [0.0, -0.79, 0.0, -2.356, 0.0, 1.57, 0.79]
         self.cam_ik_solver = IK(self.base_frame, self.cam_frame)
-        self.ee_ik_solver = IK(self.base_frame, "panda_link8")
+        # self.ee_ik_solver = IK(self.base_frame, "panda_link8")
+        self.ee_ik_solver = IK(self.base_frame, "ee_link")
 
     def solve_cam_ik(self, q0, view):
         return solve_ik(q0, view, self.cam_ik_solver)

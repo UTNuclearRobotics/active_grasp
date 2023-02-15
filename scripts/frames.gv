@@ -1,0 +1,15 @@
+digraph G {
+"world" -> "base_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1676419117.554 sec old)\nBuffer length: 0.000 sec\n"];
+"wrist_3_link" -> "ee_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1676419117.554 sec old)\nBuffer length: 0.000 sec\n"];
+"wrist_2_link" -> "wrist_3_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 27.452 Hz\nMost recent transform: 1676419117.526 ( 0.028 sec old)\nBuffer length: 4.954 sec\n"];
+"ee_link" -> "ur5_camera_depth_optical_frame"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1676419117.554 sec old)\nBuffer length: 0.000 sec\n"];
+"upper_arm_link" -> "forearm_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 27.452 Hz\nMost recent transform: 1676419117.526 ( 0.028 sec old)\nBuffer length: 4.954 sec\n"];
+"shoulder_link" -> "upper_arm_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 27.452 Hz\nMost recent transform: 1676419117.526 ( 0.028 sec old)\nBuffer length: 4.954 sec\n"];
+"base_link" -> "shoulder_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 27.452 Hz\nMost recent transform: 1676419117.526 ( 0.028 sec old)\nBuffer length: 4.954 sec\n"];
+"forearm_link" -> "wrist_1_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 27.452 Hz\nMost recent transform: 1676419117.526 ( 0.028 sec old)\nBuffer length: 4.954 sec\n"];
+"wrist_1_link" -> "wrist_2_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 27.452 Hz\nMost recent transform: 1676419117.526 ( 0.028 sec old)\nBuffer length: 4.954 sec\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1676419117.554"[ shape=plaintext ] ;
+ }->"world";
+}

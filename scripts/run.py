@@ -19,12 +19,12 @@ def main():
     
     parser = create_parser()
     args = parser.parse_args()
-    
+    # ipdb.set_trace()
     policy = make(args.policy)
     print(f"policy = {policy}")
     controller = GraspController(policy)
     logger = Logger(args)
-    ipdb.set_trace()
+    # ipdb.set_trace()
     seed_simulation(args.seed)
     rospy.sleep(1.0)  # Prevents a rare race condiion
 

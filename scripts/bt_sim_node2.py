@@ -20,14 +20,14 @@ import ipdb
 
 from active_grasp.bbox import to_bbox_msg
 from active_grasp.srv import *
-from active_grasp.simulation import Simulation
+from active_grasp.simulation2 import Simulation2
 from robot_helpers.ros.conversions import *
 from vgn.simulation import apply_noise
 
 
 alpha = 0.5
 
-class BtSimNode:
+class BtSimNode2:
     def __init__(self):
         gui = True #rospy.get_param("~gui")
         print(f"gui = {gui}")
@@ -36,7 +36,7 @@ class BtSimNode:
 
         ur5_path = rospy.get_param("bt_sim/ur5_path")
 
-        self.sim = Simulation(gui, scene_id, vgn_path, ur5_path)
+        self.sim = Simulation2(gui, scene_id, vgn_path, ur5_path)
         # ipdb.set_trace()
         
         print(f"ur5_path = {ur5_path}")
@@ -50,34 +50,25 @@ class BtSimNode:
     def init_plugins(self):
         self.plugins = [
             PhysicsPlugin(self.sim),
-            RobotStatePlugin(self.sim.arm, self.sim.gripper),
-            MoveActionPlugin(self.sim.gripper),
-            GraspActionPlugin(self.sim.gripper),
-            GripperActionPlugin(),
             CameraPlugin(self.sim.camera),
-            MockActionsPlugin(),
             UR5RobotStatePlugin(self.sim.ur5.bullet_obj),
-            UR5CameraPlugin(self.sim.ur5.plugin),
+            # UR5CameraPlugin(self.sim.ur5.plugin),
         ]
         self.controllers = {
-            "cartesian_velocity_controller": CartesianVelocityControllerPlugin(
-                self.sim.arm, self.sim.model
-            ),
-            "position_joint_trajectory_controller": JointTrajectoryControllerPlugin(
-                self.sim.arm
+            "position_joint_trajectory_controller": UR5JointTrajectoryControllerPlugin(
+                self.sim.ur5.bullet_obj.robot
             ),
         }
-            # "position_joint_trajectory_controller": UR5JointTrajectoryControllerPlugin(
-            #     self.sim.arm
-            # ),
-        # }
 
     def start_plugins(self):
         for plugin in self.plugins + list(self.controllers.values()):
             plugin.thread.start()
 
     def activate_plugins(self):
-        for plugin in self.plugins:
+        # Original code
+        # for plugin in self.plugins:
+        # my change
+        for plugin in self.plugins + list(self.controllers.values()):
             plugin.activate()
 
     def deactivate_plugins(self):
@@ -111,10 +102,10 @@ class BtSimNode:
         return ResetResponse(to_bbox_msg(bbox))
 
     def switch_controller(self, req):
-        for controller in req.stop_controllers:
-            self.controllers[controller].deactivate()
-        for controller in req.start_controllers:
-            self.controllers[controller].activate()
+        # for controller in req.stop_controllers:
+        #     self.controllers[controller].deactivate()
+        # for controller in req.start_controllers:
+        #     self.controllers[controller].activate()
         return SwitchControllerResponse(ok=True)
 
     def run(self):
@@ -122,6 +113,8 @@ class BtSimNode:
         print("started plugins")
         self.activate_plugins()
         print("activated plugins")
+
+        # ipdb.set_trace()
 
         # self.sim.ur5.main_loop()
         # self.sim.ur5.bullet_obj.robot.step()
@@ -164,63 +157,6 @@ class PhysicsPlugin(Plugin):
 
     def update(self):
         self.sim.step()
-
-
-class RobotStatePlugin(Plugin):
-    def __init__(self, arm, gripper, rate=30):
-        super().__init__(rate)
-        self.arm = arm
-        self.gripper = gripper
-        self.arm_state_pub = rospy.Publisher(
-            "/franka_state_controller/franka_states", FrankaState, queue_size=10
-        )
-        self.gripper_state_pub = rospy.Publisher(
-            "/franka_gripper/joint_states", JointState, queue_size=10
-        )
-        self.joint_states_pub = rospy.Publisher(
-            "joint_states", JointState, queue_size=10
-        )
-
-    def update(self):
-        q, dq = self.arm.get_state()
-        width = self.gripper.read()
-        header = Header(stamp=rospy.Time.now())
-
-        msg = FrankaState(header=header, q=q, dq=dq)
-
-        self.arm_state_pub.publish(msg)
-        # ipdb.set_trace()
-        msg = JointState(header=header)
-        
-        msg.name = ["panda_finger_joint1", "panda_finger_joint2"]
-        msg.position = [0.5 * width, 0.5 * width]
-        self.gripper_state_pub.publish(msg)
-
-        # q, dq = self.arm.get_state_all()
-        # q_old = q[:7]
-        # dq_old = dq[:7]
-        msg = JointState(header=header)
-        msg.name = ["panda_joint{}".format(i) for i in range(1, 8)] + [
-            "panda_finger_joint1",
-            "panda_finger_joint2",
-        ]
-        # msg.name = ["panda_joint{}".format(i) for i in range(1, 8)] + [
-        #     "panda_finger_joint1",
-        #     "panda_finger_joint2",
-        #     "panda_ur5_joint",
-        #     "shoulder_pan_joint",
-        #     "shoulder_lift_joint",
-        #     "elbow_joint",
-        #     "wrist_1_joint",
-        #     "wrist_2_joint",
-        #     "wrist_3_joint",
-        #     "ee_fixed_joint",
-        #     "ur5_hand_camera_depth_optical_frame_joint",
-
-        # ]
-        msg.position = np.r_[q, 0.5 * width, 0.5 * width]
-        # msg.position = np.r_[q_old, 0.5 * width, 0.5 * width, q[12:]]
-        self.joint_states_pub.publish(msg)
 
 
 class UR5RobotStatePlugin(Plugin):
@@ -318,19 +254,20 @@ class UR5JointTrajectoryControllerPlugin(Plugin):
         self.action_server = SimpleActionServer(
             name, control_msgs.FollowJointTrajectoryAction, auto_start=False
         )
-        
+        # ipdb.set_trace()
         self.action_server.register_goal_callback(self.action_goal_cb)
         self.action_server.start()
 #####################################################
-        self.duration = 100
+        # self.duration = 100
 
     def action_goal_cb(self):
         goal = self.action_server.accept_new_goal()
+        # print(f"goal={goal}")
         self.interpolate_trajectory(goal.trajectory.points)
         self.elapsed_time = 0.0
 
     def interpolate_trajectory(self, points):
-        t, y = np.zeros(len(points)), np.zeros((7, len(points)))
+        t, y = np.zeros(len(points)), np.zeros((6, len(points)))
         for i, point in enumerate(points):
             t[i] = point.time_from_start.to_sec()
             y[:, i] = point.positions
@@ -338,12 +275,15 @@ class UR5JointTrajectoryControllerPlugin(Plugin):
         self.duration = t[-1]
 
     def update(self):
+        # ipdb.set_trace()
+        # print("came to controller update")
         if self.action_server.is_active():
             self.elapsed_time += self.dt
             if self.elapsed_time > self.duration:
                 self.action_server.set_succeeded()
                 return
-            self.arm.set_desired_joint_positions_ur5(self.m(self.elapsed_time))
+            # self.arm.set_desired_joint_positions_ur5(self.m(self.elapsed_time))
+            self.arm.allJointMotorControl(self.m(self.elapsed_time))
 
 
 class MoveActionPlugin(Plugin):
@@ -434,57 +374,44 @@ class CameraPlugin(Plugin):
         self.info_pub = rospy.Publisher(topic, CameraInfo, queue_size=10)
         topic = self.name + "/depth/image_rect_raw"
         self.depth_pub = rospy.Publisher(topic, Image, queue_size=10)
+        topic = self.name + "/color/image_raw"
+        self.color_pub = rospy.Publisher(topic, Image, queue_size=10)
 
     def update(self):
         stamp = rospy.Time.now()
-
+        # ipdb.set_trace()
         msg = to_camera_info_msg(self.camera.intrinsic)
-        msg.header.frame_id = self.name + "_optical_frame"
+        # msg.header.frame_id = "ur5_" + self.name + "_depth_optical_frame"
+        msg.header.frame_id = "base_link"
         msg.header.stamp = stamp
         self.info_pub.publish(msg)
 
-        _, depth, _ = self.camera.get_image()
+        color , depth, _ = self.camera.get_image()
 
         if self.cam_noise:
             depth = apply_noise(depth)
 
         msg = self.cv_bridge.cv2_to_imgmsg((1000 * depth).astype(np.uint16))
         msg.header.stamp = stamp
+        msg.header.frame_id = "ur5_" + self.name + "_depth_optical_frame"
+        # msg.header.frame_id = "base_link"
         self.depth_pub.publish(msg)
 
+        msg = self.cv_bridge.cv2_to_imgmsg(color)
+        msg.header.stamp = stamp
+        # msg.header.frame_id = "ur5_" + self.name + "_depth_optical_frame"
+        msg.header.frame_id = "base_link"
+        self.color_pub.publish(msg)
 
-class MockActionsPlugin(Plugin):
-    def __init__(self):
-        super().__init__(1)
-        self.init_recovery_action_server()
-        self.init_homing_action_server()
 
-    def init_homing_action_server(self):
-        self.homing_as = SimpleActionServer(
-            "/franka_gripper/homing", HomingAction, auto_start=False
-        )
-        self.homing_as.register_goal_callback(self.action_goal_cb)
-        self.homing_as.start()
 
-    def init_recovery_action_server(self):
-        self.recovery_as = SimpleActionServer(
-            "/franka_control/error_recovery", ErrorRecoveryAction, auto_start=False
-        )
-        self.recovery_as.register_goal_callback(self.action_goal_cb)
-        self.recovery_as.start()
-
-    def action_goal_cb(self):
-        pass
-
-    def update(self):
-        pass
 
 
 def main():
     rospy.init_node("bt_sim")
     
     print("starting pybullet sim")
-    server = BtSimNode()
+    server = BtSimNode2()
     print("created pybullet sim")
     server.run()
     print("successfully running server")
