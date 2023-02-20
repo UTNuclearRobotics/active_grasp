@@ -50,12 +50,13 @@ class Simulation2:
 
     def load_robot(self):
         panda_urdf_path = urdfs_dir / "franka/panda_arm_hand.urdf"
+        ur5_urdf_path = "/home/srinath/Documents/nbv_planner_nrg/src/UR5_pybullet_ros/pb_ros/src/pb_ros/urdf/urdf/ur5.urdf"
         # panda_urdf_path = urdfs_dir / "franka/panda_arm_hand_ur5.urdf"
         # self.arm = BtPandaArm(panda_urdf_path)
         # self.gripper = BtPandaGripper(self.arm)
-        # self.model = KDLModel.from_urdf_file(
-        #     panda_urdf_path, self.arm.base_frame, self.arm.ee_frame
-        # )
+        self.model = KDLModel.from_urdf_file(
+            ur5_urdf_path, "base_link", "ee_link"
+        )
         
         # ipdb.set_trace()
         self.ur5 = ROS_Wrapper(self.ur5_path,gui=True)

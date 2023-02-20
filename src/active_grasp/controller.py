@@ -49,8 +49,8 @@ class GraspController:
         # self.arm = PandaArmClient()
         self.arm = UR5ArmClient()
         # self.gripper = PandaGripperClient()
-        # topic = rospy.get_param("cartesian_velocity_controller/topic")
-        # self.cartesian_vel_pub = rospy.Publisher(topic, Twist, queue_size=10)
+        topic = rospy.get_param("cartesian_velocity_controller/topic")
+        self.cartesian_vel_pub = rospy.Publisher(topic, Twist, queue_size=10)
 
     def init_moveit(self):
         # ipdb.set_trace()
@@ -107,11 +107,12 @@ class GraspController:
     def search_grasp(self, bbox):
         self.view_sphere = ViewHalfSphere(bbox, self.min_z_dist)
         self.policy.activate(bbox, self.view_sphere)
-        # timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.send_vel_cmd)
-        timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.send_pos_cmd)
+        timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.send_vel_cmd)
+        # timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.send_pos_cmd)
         r = rospy.Rate(self.policy_rate)
         while not self.policy.done:
             img, pose, q = self.get_state()
+            print(f'joint state read by policy = {q}')
             self.policy.update(img, pose, q)
             r.sleep()
         rospy.sleep(0.2)  # Wait for a zero command to be sent to the robot.
@@ -120,6 +121,7 @@ class GraspController:
         return self.policy.best_grasp
 
     def get_state(self):
+        # ipdb.set_trace()
         q, _ = self.arm.get_state()
         # q = self.
         msg = copy.deepcopy(self.latest_depth_msg)
@@ -144,6 +146,20 @@ class GraspController:
         self.cartesian_vel_pub.publish(to_twist_msg(cmd))
 
     def compute_velocity_cmd(self, x_d, x):
+        r, theta, phi = cartesian_to_spherical(x.translation - self.view_sphere.center)
+        e_t = x_d.translation - x.translation
+        e_n = (x.translation - self.view_sphere.center) * (self.view_sphere.r - r) / r
+        linear = 1.0 * e_t + 6.0 * (r < self.view_sphere.r) * e_n
+        linear = linear*0.01
+        scale = np.linalg.norm(linear) + 1e-6
+        linear *= np.clip(scale, 0.0, self.linear_vel) / scale
+        angular = self.view_sphere.get_view(theta, phi).rotation * x.rotation.inv()
+        # angular = 1.0 * angular.as_rotvec()
+        angular = 0.1 * angular.as_rotvec()
+
+        return np.r_[linear, angular]
+
+    def compute_position_cmd(self, x_d, x):
         r, theta, phi = cartesian_to_spherical(x.translation - self.view_sphere.center)
         e_t = x_d.translation - x.translation
         e_n = (x.translation - self.view_sphere.center) * (self.view_sphere.r - r) / r

@@ -58,6 +58,9 @@ class BtSimNode2:
             "position_joint_trajectory_controller": UR5JointTrajectoryControllerPlugin(
                 self.sim.ur5.bullet_obj.robot
             ),
+            "cartesian_velocity_controller": UR5CartesianVelocityControllerPlugin(
+                self.sim.ur5.bullet_obj.robot, self.sim.model
+            ),
         }
 
     def start_plugins(self):
@@ -66,9 +69,9 @@ class BtSimNode2:
 
     def activate_plugins(self):
         # Original code
-        # for plugin in self.plugins:
+        for plugin in self.plugins:
         # my change
-        for plugin in self.plugins + list(self.controllers.values()):
+        # for plugin in self.plugins + list(self.controllers.values()):
             plugin.activate()
 
     def deactivate_plugins(self):
@@ -102,10 +105,10 @@ class BtSimNode2:
         return ResetResponse(to_bbox_msg(bbox))
 
     def switch_controller(self, req):
-        # for controller in req.stop_controllers:
-        #     self.controllers[controller].deactivate()
-        # for controller in req.start_controllers:
-        #     self.controllers[controller].activate()
+        for controller in req.stop_controllers:
+            self.controllers[controller].deactivate()
+        for controller in req.start_controllers:
+            self.controllers[controller].activate()
         return SwitchControllerResponse(ok=True)
 
     def run(self):
@@ -204,7 +207,6 @@ class CartesianVelocityControllerPlugin(Plugin):
         cmd = np.dot(J_pinv, self.dx_d)
         self.arm.set_desired_joint_velocities(cmd)
 
-
 class JointTrajectoryControllerPlugin(Plugin):
     def __init__(self, arm, rate=30):
         super().__init__(rate)
@@ -241,6 +243,37 @@ class JointTrajectoryControllerPlugin(Plugin):
                 return
             self.arm.set_desired_joint_positions(self.m(self.elapsed_time))
 
+class UR5CartesianVelocityControllerPlugin(Plugin):
+    def __init__(self, arm, model, rate=30):
+        super().__init__(rate)
+        self.arm = arm
+        self.model = model
+        topic = rospy.get_param("cartesian_velocity_controller/topic")
+        rospy.Subscriber(topic, Twist, self.target_cb)
+
+    def target_cb(self, msg):
+        self.dx_d = from_twist_msg(msg)
+
+    def activate(self):
+        self.dx_d = np.zeros(6)
+        self.is_running = True
+
+    def deactivate(self):
+        self.dx_d = np.zeros(6)
+        self.is_running = False
+        self.arm.allJointMotorControl(JointVels=np.zeros(6), controllerType='velocity')
+
+    def update(self):
+        q = self.arm.getJointStates()[1]
+        # ipdb.set_trace()
+        # a,b = q[0], q[2]
+        # q[0], q[2] = b,a
+        print(f'joint states read by controller to pybullet = {q}')
+        J_pinv = np.linalg.pinv(self.model.jacobian(q))
+        # ipdb.set_trace()
+        cmd = np.dot(J_pinv, self.dx_d)
+        print(f'velocity commands = {cmd}')
+        self.arm.allJointMotorControl(JointVels=cmd, controllerType='velocity')
 
 class UR5JointTrajectoryControllerPlugin(Plugin):
     def __init__(self, arm, rate=30):

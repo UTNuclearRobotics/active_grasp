@@ -22,8 +22,8 @@ grasp_controller:
     min_z_dist: 0.3
 
 cartesian_velocity_controller:
-  topic: /cartesian_velocity_controller/set_command
-
+  # topic: /cartesian_velocity_controller/set_command
+  topic: /ur5_cartesian_velocity_controller/set_command
 vgn:
   model: $(find vgn)/assets/models/vgn_conv.pth
   finger_depth: 0.05
