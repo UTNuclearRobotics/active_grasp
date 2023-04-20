@@ -12,25 +12,31 @@ from vgn.perception import UniformTSDFVolume
 from .timer import Timer
 from .rviz import Visualizer
 
-import ipdb
 
 def solve_ik(q0, pose, solver):
     x, y, z = pose.translation
     qx, qy, qz, qw = pose.rotation.as_quat()
+    # print(f"x,y,z = {[x,y,z]}")
     return solver.get_ik(q0, x, y, z, qx, qy, qz, qw)
 
 
 class Policy:
     def __init__(self):
         self.load_parameters()
+        print("loaded parameters")
+
         self.init_ik_solver()
+        print("loaded ik solver")
+
         self.init_visualizer()
+        print("loaded visualizer")
 
     def load_parameters(self):
         self.base_frame = rospy.get_param("~base_frame_id")
         self.T_grasp_ee = Transform.from_list(rospy.get_param("~ee_grasp_offset")).inv()
         self.cam_frame = rospy.get_param("~camera/frame_id")
-        self.task_frame = "task"
+        # self.task_frame = "task"
+        self.task_frame = "map_offset" 
         info_topic = rospy.get_param("~camera/info_topic")
         msg = rospy.wait_for_message(info_topic, CameraInfo, rospy.Duration(2.0))
         self.intrinsic = from_camera_info_msg(msg)
@@ -38,9 +44,10 @@ class Policy:
 
     def init_ik_solver(self):
         self.q0 = [0.0, -0.79, 0.0, -2.356, 0.0, 1.57, 0.79]
-        self.cam_ik_solver = IK(self.base_frame, self.cam_frame)
+        self.cam_ik_solver = IK("base_link", self.cam_frame)
         # self.ee_ik_solver = IK(self.base_frame, "panda_link8")
-        self.ee_ik_solver = IK(self.base_frame, "ee_link")
+        # self.ee_ik_solver = IK(self.base_frame, "ee_link")
+        self.ee_ik_solver = IK("base_link", "r_ur5_arm_wrist_3_link")
 
     def solve_cam_ik(self, q0, view):
         return solve_ik(q0, view, self.cam_ik_solver)
@@ -60,7 +67,7 @@ class Policy:
         self.calibrate_task_frame()
         self.vis.bbox(self.base_frame, self.bbox)
 
-        self.tsdf = UniformTSDFVolume(0.3, 40)
+        self.tsdf = UniformTSDFVolume(5, 250)
         self.vgn = VGN(Path(rospy.get_param("vgn/model")))
 
         self.views = []
@@ -70,10 +77,14 @@ class Policy:
         self.info = {}
 
     def calibrate_task_frame(self):
-        xyz = np.r_[self.bbox.center[:2] - 0.15, self.bbox.min[2] - 0.05]
+        # xyz = np.r_[self.bbox.center[:2] - 0.15, self.bbox.min[2] - 0.05]
+
+        # converting from base frame = "map" to task frame = "map_offset"
+        xyz = np.array([-2, -2, 0])
+        print(f"xyz={xyz}")
         self.T_base_task = Transform.from_translation(xyz)
         self.T_task_base = self.T_base_task.inv()
-        tf.broadcast(self.T_base_task, self.base_frame, self.task_frame)
+        # tf.broadcast(self.T_base_task, self.base_frame, self.task_frame)
         rospy.sleep(1.0)  # Wait for tf tree to be updated
         self.vis.roi(self.task_frame, 0.3)
 

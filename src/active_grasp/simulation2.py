@@ -50,19 +50,15 @@ class Simulation2:
 
     def load_robot(self):
         panda_urdf_path = urdfs_dir / "franka/panda_arm_hand.urdf"
-        ur5_urdf_path = "/home/srinath/Documents/nbv_planner_nrg/src/UR5_pybullet_ros/pb_ros/src/pb_ros/urdf/urdf/ur5.urdf"
         # panda_urdf_path = urdfs_dir / "franka/panda_arm_hand_ur5.urdf"
-        # self.arm = BtPandaArm(panda_urdf_path)
-        # self.gripper = BtPandaGripper(self.arm)
+        self.arm = BtPandaArm(panda_urdf_path)
+        self.gripper = BtPandaGripper(self.arm)
         self.model = KDLModel.from_urdf_file(
-            ur5_urdf_path, "base_link", "ee_link"
+            panda_urdf_path, self.arm.base_frame, self.arm.ee_frame
         )
-        
+        self.camera = BtCamera(320, 240, 0.96, 0.01, 1.0, self.arm.uid, 11)
         # ipdb.set_trace()
         self.ur5 = ROS_Wrapper(self.ur5_path,gui=True)
-        # ipdb.set_trace()
-        self.camera = BtCamera(320, 240, 0.96, 0.01, 1.0, self.ur5.bullet_obj.robot.arm_id, 8)
-        # self.camera = BtCamera(320, 240, 0.96, 0.01, 1.0, self.ur5.bullet_obj.robot.arm_id, 7)
 
     def load_vgn(self, model_path):
         self.vgn = VGN(model_path)
@@ -71,26 +67,23 @@ class Simulation2:
         # ipdb.set_trace()
         valid = False
         while not valid:
-            # self.set_arm_configuration([0.0, -1.39, 0.0, -2.36, 0.0, 1.57, 0.79])
-            # ipdb.set_trace()
-            self.set_arm_configuration([np.deg2rad(5), np.deg2rad(-65), np.deg2rad(-87), np.deg2rad(-94), np.deg2rad(94), np.deg2rad(-177)])
+            self.set_arm_configuration([0.0, -1.39, 0.0, -2.36, 0.0, 1.57, 0.79])
             # use this if there is a world joint in pybullet
             # self.set_arm_configuration([0.0, 0.0, -1.39, 0.0, -2.36, 0.0, 1.57, 0.79])
             self.scene.clear()
             q = self.scene.generate(self.rng)
-            # self.set_arm_configuration(q)
+            self.set_arm_configuration(q)
             uid = self.select_target()
             bbox = self.get_target_bbox(uid)
             valid = self.check_for_grasps(bbox)
         return bbox
 
     def set_arm_configuration(self, q):
-        # for i, q_i in enumerate(q):
-        #     p.resetJointState(self.ur5.bullet_obj.robot.arm_id, i, q_i, 0)
-        # p.resetJointState(self.arm.uid, 9, 0.04, 0)
-        # p.resetJointState(self.arm.uid, 10, 0.04, 0)
-        # self.gripper.set_desired_width(0.4)
-        self.ur5.bullet_obj.robot.resetJointStates(q)
+        for i, q_i in enumerate(q):
+            p.resetJointState(self.arm.uid, i, q_i, 0)
+        p.resetJointState(self.arm.uid, 9, 0.04, 0)
+        p.resetJointState(self.arm.uid, 10, 0.04, 0)
+        self.gripper.set_desired_width(0.4)
 
     def select_target(self):
         _, _, mask = self.camera.get_image()
@@ -133,14 +126,13 @@ class Simulation2:
         # vis.scene_cloud(voxel_size, tsdf.get_scene_cloud())
         # vis.grasps(grasps, qualities, 0.05)
         # vis.show()
-        
+
         for grasp in grasps:
             pose = origin * grasp.pose
             tip = pose.rotation.apply([0, 0, 0.05]) + pose.translation
             if bbox.is_inside(tip):
                 return True
-        
-        return True #False
+        return False
 
     def step(self):
         p.stepSimulation()

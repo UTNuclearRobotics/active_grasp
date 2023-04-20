@@ -7,10 +7,15 @@ from .policy import MultiViewPolicy
 from .timer import Timer
 import ipdb
 
+# @jit(nopython=True)
+# def get_voxel_at(voxel_size, p):
+#     index = (p / voxel_size).astype(np.int64)
+#     return index if (index >= 0).all() and (index < 40).all() else None
+
 @jit(nopython=True)
 def get_voxel_at(voxel_size, p):
     index = (p / voxel_size).astype(np.int64)
-    return index if (index >= 0).all() and (index < 40).all() else None
+    return index if (index >= 0).all() and (index < 250).all() else None
 
 
 # Note that the jit compilation takes some time the first time raycast is called
@@ -65,7 +70,7 @@ class NextBestView(MultiViewPolicy):
         # Trigger the JIT compilation
         raycast(
             1.0,
-            np.zeros((40, 40, 40), dtype=np.float32),
+            np.zeros((250, 250, 250), dtype=np.float32),
             np.eye(3),
             np.zeros(3),
             1.0,
@@ -121,8 +126,10 @@ class NextBestView(MultiViewPolicy):
         # thetas = np.deg2rad([15, 30])
         # phis = np.arange(8) * np.deg2rad(45)
         # thetas = np.deg2rad([-30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+        # thetas = np.arange(-4,4) * np.deg2rad(15)
+        # phis = np.arange(0,5) * np.deg2rad(30)
         thetas = np.arange(-4,4) * np.deg2rad(15)
-        phis = np.arange(0,5) * np.deg2rad(30)
+        phis = np.arange(-1,3) * np.deg2rad(30)
         view_candidates = []
         for theta, phi in itertools.product(thetas, phis):
             # ipdb.set_trace()
@@ -178,6 +185,7 @@ class NextBestView(MultiViewPolicy):
 
         # Count rear side voxels within the bounding box
         indices = np.unique(voxel_indices, axis=0)
+        # ipdb.set_trace()
         bbox_min = self.T_task_base.apply(self.bbox.min) / voxel_size
         bbox_max = self.T_task_base.apply(self.bbox.max) / voxel_size
         mask = np.array([((i > bbox_min) & (i < bbox_max)).all() for i in indices])

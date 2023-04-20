@@ -17,14 +17,13 @@ from robot_helpers.ros.moveit import MoveItClient, create_collision_object_from_
 from robot_helpers.spatial import Rotation, Transform
 from vgn.utils import look_at, cartesian_to_spherical, spherical_to_cartesian
 import ipdb
-from robot_helpers.ros.ur5 import UR5ArmClient
+
 class GraspController:
     def __init__(self, policy):
         self.policy = policy
         self.load_parameters()
         self.init_service_proxies()
-        # ipdb.set_trace()
-        self.init_robot_connection()
+        # self.init_robot_connection()
         self.init_moveit()
         self.init_camera_stream()
 
@@ -46,16 +45,14 @@ class GraspController:
         )
 
     def init_robot_connection(self):
-        # self.arm = PandaArmClient()
-        self.arm = UR5ArmClient()
-        # self.gripper = PandaGripperClient()
+        self.arm = PandaArmClient()
+        self.gripper = PandaGripperClient()
         topic = rospy.get_param("cartesian_velocity_controller/topic")
         self.cartesian_vel_pub = rospy.Publisher(topic, Twist, queue_size=10)
 
     def init_moveit(self):
-        # ipdb.set_trace()
-        # self.moveit = MoveItClient("panda_arm")
-        self.moveit = MoveItClient("arm")
+        ipdb.set_trace()
+        self.moveit = MoveItClient("panda_arm")
         rospy.sleep(1.0)  # Wait for connections to be established.
         self.moveit.move_group.set_planner_id("RRTstarkConfigDefault")
         self.moveit.move_group.set_planning_time(3.0)
@@ -108,11 +105,9 @@ class GraspController:
         self.view_sphere = ViewHalfSphere(bbox, self.min_z_dist)
         self.policy.activate(bbox, self.view_sphere)
         timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.send_vel_cmd)
-        # timer = rospy.Timer(rospy.Duration(1.0 / self.control_rate), self.send_pos_cmd)
         r = rospy.Rate(self.policy_rate)
         while not self.policy.done:
             img, pose, q = self.get_state()
-            print(f'joint state read by policy = {q}')
             self.policy.update(img, pose, q)
             r.sleep()
         rospy.sleep(0.2)  # Wait for a zero command to be sent to the robot.
@@ -121,9 +116,7 @@ class GraspController:
         return self.policy.best_grasp
 
     def get_state(self):
-        # ipdb.set_trace()
         q, _ = self.arm.get_state()
-        # q = self.
         msg = copy.deepcopy(self.latest_depth_msg)
         img = self.cv_bridge.imgmsg_to_cv2(msg).astype(np.float32) * 0.001
         pose = tf.lookup(self.base_frame, self.cam_frame, msg.header.stamp)
@@ -136,30 +129,8 @@ class GraspController:
             x = tf.lookup(self.base_frame, self.cam_frame)
             cmd = self.compute_velocity_cmd(self.policy.x_d, x)
         self.cartesian_vel_pub.publish(to_twist_msg(cmd))
-    
-    def send_pos_cmd(self, event):
-        if self.policy.x_d is None or self.policy.done:
-            cmd = np.zeros(6)
-        else:
-            x = tf.lookup(self.base_frame, self.cam_frame)
-            cmd = self.compute_position_cmd(self.policy.x_d, x)
-        self.cartesian_vel_pub.publish(to_twist_msg(cmd))
 
     def compute_velocity_cmd(self, x_d, x):
-        r, theta, phi = cartesian_to_spherical(x.translation - self.view_sphere.center)
-        e_t = x_d.translation - x.translation
-        e_n = (x.translation - self.view_sphere.center) * (self.view_sphere.r - r) / r
-        linear = 1.0 * e_t + 6.0 * (r < self.view_sphere.r) * e_n
-        linear = linear*0.01
-        scale = np.linalg.norm(linear) + 1e-6
-        linear *= np.clip(scale, 0.0, self.linear_vel) / scale
-        angular = self.view_sphere.get_view(theta, phi).rotation * x.rotation.inv()
-        # angular = 1.0 * angular.as_rotvec()
-        angular = 0.1 * angular.as_rotvec()
-
-        return np.r_[linear, angular]
-
-    def compute_position_cmd(self, x_d, x):
         r, theta, phi = cartesian_to_spherical(x.translation - self.view_sphere.center)
         e_t = x_d.translation - x.translation
         e_n = (x.translation - self.view_sphere.center) * (self.view_sphere.r - r) / r
